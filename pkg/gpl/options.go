@@ -12,6 +12,7 @@ type options struct {
 	relative     *bool // nil means use RuleSet default
 	fileAdded    bool
 	separator    *string // nil means use RuleSet default
+	siblings     []string // sibling basenames for collision detection during Clean
 }
 
 func defaultOptions() options {
@@ -53,6 +54,19 @@ func WithFileAdded(v bool) Option {
 // WithSeparator overrides the path separator from the RuleSet.
 func WithSeparator(sep string) Option {
 	return func(o *options) { o.separator = &sep }
+}
+
+// WithSiblings sets sibling basenames (other children in the same folder, including
+// originals) used by Clean to detect cleaned-name collisions. When unset, Clean
+// behaves as before.
+func WithSiblings(names []string) Option {
+	return func(o *options) {
+		if len(names) == 0 {
+			o.siblings = nil
+			return
+		}
+		o.siblings = append([]string(nil), names...)
+	}
 }
 
 func applyOptions(rs check.RuleSet, opts []Option) options {

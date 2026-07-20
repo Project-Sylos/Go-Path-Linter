@@ -12,6 +12,69 @@ import (
 	"codeberg.org/Sylos/go-path-linter/pkg/issue"
 )
 
+func TestWindowsUserMessages_InvalidCharAndTrailingSpace(t *testing.T) {
+	l, err := gpl.New(gpl.Windows, "",
+		gpl.WithRelative(true),
+		gpl.WithAutoClean(false),
+		gpl.WithRaiseErrors(false),
+		gpl.WithAutoValidate(false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddPart("Invalid Chars*"); err != nil {
+		t.Fatal(err)
+	}
+	_ = l.Validate()
+	foundInvalid := false
+	for _, iss := range l.Log.Issues {
+		if iss.Category != issue.CategoryInvalidChar {
+			continue
+		}
+		foundInvalid = true
+		if !strings.Contains(iss.UserMessage, "invalid characters") {
+			t.Fatalf("UserMessage=%q", iss.UserMessage)
+		}
+		if !strings.Contains(iss.UserMessage, "*") {
+			t.Fatalf("UserMessage missing *: %q", iss.UserMessage)
+		}
+		if iss.DocsURL == "" {
+			t.Fatal("expected DocsURL for Windows")
+		}
+	}
+	if !foundInvalid {
+		t.Fatalf("expected InvalidChar issue, got %#v", l.Log.Issues)
+	}
+
+	l2, err := gpl.New(gpl.Windows, "",
+		gpl.WithRelative(true),
+		gpl.WithAutoClean(true),
+		gpl.WithRaiseErrors(false),
+		gpl.WithAutoValidate(false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = l2.AddPart("Extra Space ")
+	_, _ = l2.Clean()
+	foundTrail := false
+	for _, act := range l2.Log.Actions {
+		if act.Category != issue.CategoryTrailingSpace {
+			continue
+		}
+		foundTrail = true
+		if !strings.Contains(act.UserMessage, "space") {
+			t.Fatalf("UserMessage=%q", act.UserMessage)
+		}
+		if act.DocsURL == "" {
+			t.Fatal("expected DocsURL on trailing-space action")
+		}
+	}
+	if !foundTrail {
+		t.Fatalf("expected TrailingSpace action, got %#v", l2.Log.Actions)
+	}
+}
+
 func TestWindowsValidateAndClean(t *testing.T) {
 	l, err := gpl.NewWindows(`C:\Broken\**path\||file . txt`,
 		gpl.WithRelative(true),
@@ -41,6 +104,7 @@ func TestWindowsValidateAndClean(t *testing.T) {
 		t.Fatal("expected clean actions")
 	}
 }
+
 
 func TestCleanRemovesEmptyPartsAfterStrip(t *testing.T) {
 	l, err := gpl.NewWindows(`C:\Docs\*`,
@@ -233,4 +297,78 @@ func ExampleNewWindows() {
 	}
 	fmt.Println(l.Path())
 	// Output: C:\Docs\file.txt
+}
+
+func TestValidatePathPreservesPartIssues(t *testing.T) {
+	rs := check.RuleSet{
+		Separator: "/",
+		Checkers: []check.Checker{
+			check.NewInvalidChars(`<>`, check.Strip),
+			check.NewPathLength(8),
+		},
+	}
+	l, err := gpl.NewWithRules(rs, "a<b/cdefgh",
+		gpl.WithRelative(true),
+		gpl.WithAutoValidate(false),
+		gpl.WithRaiseErrors(false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	var partCount, pathCount int
+	for _, iss := range l.Log.Issues {
+		if iss.Scope == issue.ScopePath {
+			pathCount++
+		} else {
+			partCount++
+		}
+	}
+	if partCount == 0 {
+		t.Fatal("expected part-local issue for invalid char")
+	}
+	if pathCount == 0 {
+		t.Fatal("expected path-length issue")
+	}
+
+	// Shorten composed path; path issue should clear, part issue remain.
+	l.SetParts([]string{"a<b", "c"})
+	if err := l.ValidatePath(); err != nil {
+		t.Fatal(err)
+	}
+	partCount, pathCount = 0, 0
+	for _, iss := range l.Log.Issues {
+		if iss.Scope == issue.ScopePath {
+			pathCount++
+		} else {
+			partCount++
+		}
+	}
+	if partCount == 0 {
+		t.Fatal("part issue must be preserved across ValidatePath")
+	}
+	if pathCount != 0 {
+		t.Fatalf("path issue should clear after shorten, got %d", pathCount)
+	}
+}
+
+func TestSetPartsReplacePathNoValidate(t *testing.T) {
+	l, err := gpl.NewLinux("a/b", gpl.WithRelative(true), gpl.WithAutoValidate(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Log.AddIssue(issue.Issue{Category: issue.CategoryInvalidChar, Message: "keep"})
+	l.SetParts([]string{"x", "y", "z"})
+	if got := strings.Join(l.Parts(), "/"); got != "x/y/z" {
+		t.Fatalf("SetParts: got %q", got)
+	}
+	if len(l.Log.Issues) != 1 {
+		t.Fatal("SetParts must not clear Log")
+	}
+	l.ReplacePath("p/q")
+	if got := strings.Join(l.Parts(), "/"); got != "p/q" {
+		t.Fatalf("ReplacePath: got %q", got)
+	}
 }

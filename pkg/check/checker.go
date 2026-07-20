@@ -14,6 +14,10 @@ type CheckContext struct {
 	Separator  string
 	Parts      []string
 	PathLength int // full joined path length (including separators)
+	// TargetName is a human label (e.g. "Windows") for user-facing messages.
+	TargetName string
+	// DocsURL is the naming-rules documentation link for the target FS.
+	DocsURL string
 }
 
 // IsFileIndex reports whether index refers to the file component when FileAdded is set.
@@ -26,9 +30,32 @@ func (c CheckContext) IsRootIndex(index int) bool {
 	return index == 0
 }
 
+// Scope classifies whether a checker is part-local or path-global.
+type Scope int
+
+const (
+	// ScopePart is the default: checker inspects each path component.
+	ScopePart Scope = iota
+	// ScopePath checkers use the full composed path (e.g. total path length).
+	ScopePath
+)
+
 // Checker validates a single path part and reports issues (and optional actions).
 type Checker interface {
 	Check(part string, index int, ctx CheckContext, r issue.Reporter)
+}
+
+// Scoper optionally reports whether a Checker is part-local or path-global.
+// Checkers that do not implement Scoper are treated as ScopePart.
+type Scoper interface {
+	Scope() Scope
+}
+
+func checkerScope(c Checker) Scope {
+	if s, ok := c.(Scoper); ok {
+		return s.Scope()
+	}
+	return ScopePart
 }
 
 // Cleaner proposes a cleaned form of a path part.
@@ -57,13 +84,47 @@ type RuleSet struct {
 func (rs RuleSet) CheckAll(parts []string, ctx CheckContext, r issue.Reporter) {
 	ctx.Parts = parts
 	ctx.PathLength = joinedLength(parts, ctx.Separator)
+	er := enrichingReporter{inner: r, ctx: ctx}
 	for i, part := range parts {
 		for _, c := range rs.Checkers {
 			if c != nil {
-				c.Check(part, i, ctx, r)
+				c.Check(part, i, ctx, er)
 			}
 		}
 	}
+}
+
+// CheckPath runs only ScopePath checkers against the composed path.
+// Path-scoped checkers are invoked once on the last part (with PathLength set).
+func (rs RuleSet) CheckPath(parts []string, ctx CheckContext, r issue.Reporter) {
+	ctx.Parts = parts
+	ctx.PathLength = joinedLength(parts, ctx.Separator)
+	if len(parts) == 0 {
+		return
+	}
+	last := len(parts) - 1
+	er := enrichingReporter{inner: r, ctx: ctx}
+	for _, c := range rs.Checkers {
+		if c == nil || checkerScope(c) != ScopePath {
+			continue
+		}
+		c.Check(parts[last], last, ctx, er)
+	}
+}
+
+type enrichingReporter struct {
+	inner issue.Reporter
+	ctx   CheckContext
+}
+
+func (e enrichingReporter) AddIssue(iss issue.Issue) {
+	EnrichIssue(&iss, e.ctx)
+	e.inner.AddIssue(iss)
+}
+
+func (e enrichingReporter) AddAction(act issue.Action) {
+	EnrichAction(&act, e.ctx)
+	e.inner.AddAction(act)
 }
 
 // CleanAll applies Cleaners in order to each part, returning updated parts and actions.
@@ -87,6 +148,7 @@ func (rs RuleSet) CleanAll(parts []string, ctx CheckContext) (cleaned []string, 
 				continue
 			}
 			if act != nil {
+				EnrichAction(act, ctx)
 				actions = append(actions, *act)
 				if act.Kind == issue.KindRemove {
 					remove = true

@@ -59,6 +59,9 @@ func NewPathLength(max int) *PathLength {
 	return &PathLength{Max: max}
 }
 
+// Scope marks PathLength as path-global.
+func (c *PathLength) Scope() Scope { return ScopePath }
+
 // Check reports overlong full paths.
 func (c *PathLength) Check(part string, index int, ctx CheckContext, r issue.Reporter) {
 	if c.Max <= 0 || ctx.PathLength <= c.Max {
@@ -74,6 +77,7 @@ func (c *PathLength) Check(part string, index int, ctx CheckContext, r issue.Rep
 		Part:      part,
 		Message:   fmt.Sprintf("path exceeds max length %d (got %d)", c.Max, ctx.PathLength),
 		Detail:    fmt.Sprintf("%d", ctx.PathLength),
+		Scope:     issue.ScopePath,
 	})
 }
 

@@ -192,9 +192,37 @@ func TestPathLength(t *testing.T) {
 	if len(buf.Issues) != 1 {
 		t.Fatal("expected path length issue")
 	}
+	if buf.Issues[0].Scope != issue.ScopePath {
+		t.Fatalf("expected ScopePath, got %v", buf.Issues[0].Scope)
+	}
 	c.Check("ab", 0, ctx, &buf)
 	if len(buf.Issues) != 1 {
 		t.Fatal("path length should only report on last part")
+	}
+}
+
+func TestCheckPathOnlyPathScoped(t *testing.T) {
+	rs := RuleSet{
+		Separator: "/",
+		Checkers: []Checker{
+			NewInvalidChars(`<>`, Strip),
+			NewComponentLength(10),
+			NewPathLength(5),
+		},
+	}
+	var buf issue.Buffer
+	// "ab/cd" joined length 5 — ok; "ab/cde" length 6 — path issue only
+	rs.CheckPath([]string{"ab", "cde"}, CheckContext{Separator: "/"}, &buf)
+	if len(buf.Issues) != 1 || buf.Issues[0].Scope != issue.ScopePath {
+		t.Fatalf("expected one path-scoped issue, got %#v", buf.Issues)
+	}
+	// Invalid char in part must not be reported by CheckPath
+	buf.Clear()
+	rs.CheckPath([]string{"a<b", "cd"}, CheckContext{Separator: "/"}, &buf)
+	for _, iss := range buf.Issues {
+		if iss.Scope != issue.ScopePath {
+			t.Fatalf("CheckPath must not emit part issues: %#v", iss)
+		}
 	}
 }
 

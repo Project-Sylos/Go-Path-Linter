@@ -28,11 +28,46 @@ func (l *PathLinter) Validate() error {
 	return err
 }
 
+// ValidatePath re-runs only path-scoped checkers (e.g. PathLength) against the
+// current parts. Part-local issues already on Log are preserved; previous
+// ScopePath issues are replaced. Does not re-analyze part content.
+func (l *PathLinter) ValidatePath() error {
+	prev := append([]issue.Issue(nil), l.Log.Issues...)
+	kept := make([]issue.Issue, 0, len(prev))
+	for _, iss := range prev {
+		if iss.Scope != issue.ScopePath {
+			kept = append(kept, iss)
+		}
+	}
+	l.Log.Issues = kept
+
+	ctx := l.checkContext()
+	l.rules.CheckPath(l.parts, ctx, &l.Log)
+	err := issue.NewValidationError(pathScopedIssues(l.Log.Issues))
+	if !l.opts.raiseErrors {
+		return nil
+	}
+	return err
+}
+
+func pathScopedIssues(all []issue.Issue) []issue.Issue {
+	var out []issue.Issue
+	for _, iss := range all {
+		if iss.Scope == issue.ScopePath {
+			out = append(out, iss)
+		}
+	}
+	return out
+}
+
 func (l *PathLinter) checkContext() check.CheckContext {
+	info := InfoFor(l.target)
 	return check.CheckContext{
-		Relative:  l.relative(),
-		FileAdded: l.opts.fileAdded,
-		Separator: l.sep(),
-		Parts:     l.parts,
+		Relative:   l.relative(),
+		FileAdded:  l.opts.fileAdded,
+		Separator:  l.sep(),
+		Parts:      l.parts,
+		TargetName: info.DisplayName,
+		DocsURL:    info.DocsURL,
 	}
 }

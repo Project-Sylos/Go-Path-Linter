@@ -12,10 +12,12 @@ const (
 
 // Action describes a proposed fix for a non-compliant path part.
 type Action struct {
-	Category  Category
-	Kind      Kind
-	PartIndex int
-	Original  string
-	NewValue  string
-	Reason    string
+	Category    Category `json:"category"`
+	Kind        Kind     `json:"kind"`
+	PartIndex   int      `json:"partIndex"`
+	Original    string   `json:"original,omitempty"`
+	NewValue    string   `json:"newValue,omitempty"`
+	Reason      string   `json:"reason,omitempty"` // developer / CLI facing
+	UserMessage string   `json:"userMessage,omitempty"`
+	DocsURL     string   `json:"docsURL,omitempty"`
 }

@@ -100,6 +100,22 @@ func (l *PathLinter) SetPart(index int, name string) error {
 	return l.afterMutation()
 }
 
+// SetParts replaces all path parts without running Validate. Use with
+// ValidatePath when only path-scoped rules need refreshing after an ancestor rename.
+func (l *PathLinter) SetParts(parts []string) {
+	if parts == nil {
+		l.parts = nil
+		return
+	}
+	l.parts = append([]string(nil), parts...)
+}
+
+// ReplacePath splits path with the configured separator/relative policy and
+// replaces parts without validating. Call Validate or ValidatePath afterward.
+func (l *PathLinter) ReplacePath(path string) {
+	l.parts = splitPath(path, l.sep(), l.relative())
+}
+
 func (l *PathLinter) afterMutation() error {
 	if !l.opts.autoValidate {
 		return nil

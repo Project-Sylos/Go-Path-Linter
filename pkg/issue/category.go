@@ -11,5 +11,6 @@ const (
 	CategoryTrailingDot  Category = "TrailingDot"
 	CategoryTrailingSpace Category = "TrailingSpace"
 	CategoryEmptyPart    Category = "EmptyPart"
-	CategoryAbsolute     Category = "Absolute"
+	CategoryAbsolute        Category = "Absolute"
+	CategorySiblingCollision Category = "SiblingCollision"
 )

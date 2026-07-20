@@ -87,10 +87,16 @@ func (c *InvalidChars) Propose(part string, index int, ctx CheckContext) (string
 		return part, nil, false
 	}
 	var b strings.Builder
+	var found []rune
+	seen := make(map[rune]struct{})
 	changed := false
 	for _, r := range part {
 		if _, bad := c.invalid[r]; bad {
 			changed = true
+			if _, ok := seen[r]; !ok {
+				seen[r] = struct{}{}
+				found = append(found, r)
+			}
 			if c.mode == Replace {
 				b.WriteString(c.replacement)
 			}
@@ -114,6 +120,9 @@ func (c *InvalidChars) Propose(part string, index int, ctx CheckContext) (string
 		Original:  part,
 		NewValue:  cleaned,
 		Reason:    reason,
+	}
+	if len(found) > 0 {
+		act.UserMessage = "This part of the path contains invalid characters: " + FormatInvalidChars(string(found))
 	}
 	return cleaned, act, true
 }
