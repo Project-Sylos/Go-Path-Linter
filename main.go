@@ -13,6 +13,9 @@ import (
 )
 
 func main() {
+
+	fmt.Println("Below is a demonstration of the go-path-linter package.")
+
 	section("1. Windows — validate a messy path, then clean it")
 	demoWindowsMessyClean()
 
