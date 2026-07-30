@@ -122,6 +122,7 @@ func (c *InvalidChars) Propose(part string, index int, ctx CheckContext) (string
 		Reason:    reason,
 	}
 	if len(found) > 0 {
+		act.Detail = string(found)
 		act.UserMessage = "This part of the path contains invalid characters: " + FormatInvalidChars(string(found))
 	}
 	return cleaned, act, true

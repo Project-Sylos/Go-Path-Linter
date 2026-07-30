@@ -4,6 +4,8 @@
 package check
 
 import (
+	"strings"
+
 	"codeberg.org/Sylos/go-path-linter/pkg/issue"
 )
 
@@ -18,6 +20,9 @@ type CheckContext struct {
 	TargetName string
 	// DocsURL is the naming-rules documentation link for the target FS.
 	DocsURL string
+	// DisallowPartRemoval, when true, forbids KindRemove cleaners (EmptyPart).
+	// Empty/invalid parts stay in the path and must be renamed manually.
+	DisallowPartRemoval bool
 }
 
 // IsFileIndex reports whether index refers to the file component when FileAdded is set.
@@ -148,6 +153,19 @@ func (rs RuleSet) CleanAll(parts []string, ctx CheckContext) (cleaned []string, 
 				continue
 			}
 			if act != nil {
+				if act.Kind == issue.KindRemove && ctx.DisallowPartRemoval {
+					act.Kind = issue.KindModify
+					act.NewValue = cur
+					if act.Reason == "" || strings.Contains(strings.ToLower(act.Reason), "removed") {
+						act.Reason = "Requires a manual rename; path parts cannot be removed."
+					}
+					if act.UserMessage == "" {
+						act.UserMessage = "This name needs a manual rename."
+					}
+					EnrichAction(act, ctx)
+					actions = append(actions, *act)
+					break
+				}
 				EnrichAction(act, ctx)
 				actions = append(actions, *act)
 				if act.Kind == issue.KindRemove {

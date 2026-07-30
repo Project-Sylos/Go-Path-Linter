@@ -63,11 +63,12 @@ func pathScopedIssues(all []issue.Issue) []issue.Issue {
 func (l *PathLinter) checkContext() check.CheckContext {
 	info := InfoFor(l.target)
 	return check.CheckContext{
-		Relative:   l.relative(),
-		FileAdded:  l.opts.fileAdded,
-		Separator:  l.sep(),
-		Parts:      l.parts,
-		TargetName: info.DisplayName,
-		DocsURL:    info.DocsURL,
+		Relative:            l.relative(),
+		FileAdded:           l.opts.fileAdded,
+		Separator:           l.sep(),
+		Parts:               l.parts,
+		TargetName:          info.DisplayName,
+		DocsURL:             info.DocsURL,
+		DisallowPartRemoval: l.opts.disallowPartRemoval,
 	}
 }

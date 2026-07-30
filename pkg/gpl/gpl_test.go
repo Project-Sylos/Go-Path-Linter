@@ -76,7 +76,7 @@ func TestWindowsUserMessages_InvalidCharAndTrailingSpace(t *testing.T) {
 }
 
 func TestWindowsValidateAndClean(t *testing.T) {
-	l, err := gpl.NewWindows(`C:\Broken\**path\||file . txt`,
+	l, err := gpl.New(gpl.Windows,`C:\Broken\**path\||file . txt`,
 		gpl.WithRelative(true),
 		gpl.WithSeparator(`/`),
 		gpl.WithFileAdded(true),
@@ -107,7 +107,7 @@ func TestWindowsValidateAndClean(t *testing.T) {
 
 
 func TestCleanRemovesEmptyPartsAfterStrip(t *testing.T) {
-	l, err := gpl.NewWindows(`C:\Docs\*`,
+	l, err := gpl.New(gpl.Windows,`C:\Docs\*`,
 		gpl.WithRelative(false),
 		gpl.WithAutoValidate(false),
 	)
@@ -129,8 +129,48 @@ func TestCleanRemovesEmptyPartsAfterStrip(t *testing.T) {
 	}
 }
 
+func TestCleanDisallowPartRemovalKeepsEmptyAfterStrip(t *testing.T) {
+	l, err := gpl.New(gpl.Windows,`C:\Docs\*`,
+		gpl.WithRelative(false),
+		gpl.WithAutoValidate(false),
+		gpl.WithDisallowPartRemoval(true),
+		gpl.WithRaiseErrors(false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AddPart("report.txt", gpl.AsFile()); err != nil {
+		t.Fatal(err)
+	}
+	cleaned, err := l.Clean()
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	parts := l.Parts()
+	if len(parts) < 3 || parts[len(parts)-2] != "" {
+		t.Fatalf("expected empty middle part to remain, parts=%#v cleaned=%q", parts, cleaned)
+	}
+	foundEmpty := false
+	for _, act := range l.Log.Actions {
+		if act.Category == issue.CategoryEmptyPart {
+			foundEmpty = true
+			if act.Kind == issue.KindRemove {
+				t.Fatalf("disallow policy should not emit KindRemove: %+v", act)
+			}
+		}
+	}
+	for _, iss := range l.Log.Issues {
+		if iss.Category == issue.CategoryEmptyPart {
+			foundEmpty = true
+		}
+	}
+	if !foundEmpty {
+		t.Fatalf("expected EmptyPart finding; actions=%v issues=%v", l.Log.Actions, l.Log.Issues)
+	}
+}
+
 func TestRaiseErrorsFalseStoresIssues(t *testing.T) {
-	l, err := gpl.NewWindows(`C:\Docs\*`,
+	l, err := gpl.New(gpl.Windows,`C:\Docs\*`,
 		gpl.WithRelative(false),
 		gpl.WithAutoValidate(false),
 		gpl.WithRaiseErrors(false),
@@ -148,7 +188,7 @@ func TestRaiseErrorsFalseStoresIssues(t *testing.T) {
 }
 
 func TestSnapshotRoundTrip(t *testing.T) {
-	l, err := gpl.NewWindows(`C:\Docs\bad*`,
+	l, err := gpl.New(gpl.Windows,`C:\Docs\bad*`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(false),
 		gpl.WithAutoValidate(false),
@@ -179,7 +219,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 }
 
 func TestDynamicParts(t *testing.T) {
-	l, err := gpl.NewWindows(`C:`, gpl.WithRelative(false), gpl.WithAutoValidate(false))
+	l, err := gpl.New(gpl.Windows,`C:`, gpl.WithRelative(false), gpl.WithAutoValidate(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +265,7 @@ func TestNewWithRules(t *testing.T) {
 }
 
 func TestMacOSForceRelative(t *testing.T) {
-	l, err := gpl.NewMacOS("/tmp/file", gpl.WithRelative(false), gpl.WithAutoValidate(false))
+	l, err := gpl.New(gpl.MacOS,"/tmp/file", gpl.WithRelative(false), gpl.WithAutoValidate(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +273,7 @@ func TestMacOSForceRelative(t *testing.T) {
 }
 
 func TestLinuxValid(t *testing.T) {
-	l, err := gpl.NewLinux("/home/user/docs", gpl.WithRelative(false), gpl.WithFileAdded(false), gpl.WithAutoValidate(false))
+	l, err := gpl.New(gpl.Linux,"/home/user/docs", gpl.WithRelative(false), gpl.WithFileAdded(false), gpl.WithAutoValidate(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,27 +287,27 @@ func TestLinuxValid(t *testing.T) {
 }
 
 func TestCloudTargetsConstruct(t *testing.T) {
-	ctors := []func(string, ...gpl.Option) (*gpl.PathLinter, error){
-		gpl.NewDropbox,
-		gpl.NewBox,
-		gpl.NewEgnyte,
-		gpl.NewOneDrive,
-		gpl.NewSharePoint,
-		gpl.NewShareFile,
+	targets := []gpl.Target{
+		gpl.Dropbox,
+		gpl.Box,
+		gpl.Egnyte,
+		gpl.OneDrive,
+		gpl.SharePoint,
+		gpl.ShareFile,
 	}
-	for _, ctor := range ctors {
-		l, err := ctor("/Documents/ok.txt", gpl.WithFileAdded(true), gpl.WithAutoValidate(false))
+	for _, target := range targets {
+		l, err := gpl.New(target, "/Documents/ok.txt", gpl.WithFileAdded(true), gpl.WithAutoValidate(false))
 		if err != nil {
 			t.Fatal(err)
 		}
 		if err := l.Validate(); err != nil {
-			t.Fatalf("%T: %v issues=%v", ctor, err, l.Log.Issues)
+			t.Fatalf("%s: %v issues=%v", target, err, l.Log.Issues)
 		}
 	}
 }
 
 func TestReservedWindows(t *testing.T) {
-	l, err := gpl.NewWindows(`C:\CON\file.txt`, gpl.WithRelative(false), gpl.WithFileAdded(true), gpl.WithAutoValidate(false))
+	l, err := gpl.New(gpl.Windows,`C:\CON\file.txt`, gpl.WithRelative(false), gpl.WithFileAdded(true), gpl.WithAutoValidate(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,8 +323,8 @@ func TestReservedWindows(t *testing.T) {
 	}
 }
 
-func ExampleNewWindows() {
-	l, err := gpl.NewWindows(`C:\Docs\file.txt`,
+func ExampleNew() {
+	l, err := gpl.New(gpl.Windows, `C:\Docs\file.txt`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -355,7 +395,7 @@ func TestValidatePathPreservesPartIssues(t *testing.T) {
 }
 
 func TestSetPartsReplacePathNoValidate(t *testing.T) {
-	l, err := gpl.NewLinux("a/b", gpl.WithRelative(true), gpl.WithAutoValidate(false))
+	l, err := gpl.New(gpl.Linux,"a/b", gpl.WithRelative(true), gpl.WithAutoValidate(false))
 	if err != nil {
 		t.Fatal(err)
 	}

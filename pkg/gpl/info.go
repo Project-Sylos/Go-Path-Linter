@@ -31,7 +31,7 @@ func InfoFor(t Target) Info {
 		return Info{
 			ID:          "dropbox",
 			DisplayName: "Dropbox",
-			DocsURL:     "https://help.dropbox.com/organize/file-naming-conventions",
+			DocsURL:     "https://help.dropbox.com/organize/file-names",
 		}
 	case Box:
 		return Info{

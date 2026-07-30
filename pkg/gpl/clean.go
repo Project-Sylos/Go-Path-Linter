@@ -8,8 +8,9 @@ import (
 )
 
 // Clean applies RuleSet cleaners, updates parts, and returns the cleaned path.
-// Empty parts are removed during cleaning. Remaining issues are always stored
-// on Log; when RaiseErrors is enabled, a ValidationError is also returned.
+// Empty parts are removed during cleaning unless WithDisallowPartRemoval is set.
+// Remaining issues are always stored on Log; when RaiseErrors is enabled, a
+// ValidationError is also returned.
 //
 // When WithSiblings is set, Clean also checks whether the cleaned final basename
 // collides with any sibling name (exact match or the name that sibling cleaning

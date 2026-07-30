@@ -24,7 +24,7 @@ const (
 
 // New creates a PathLinter for a built-in target.
 func New(t Target, path string, opts ...Option) (*PathLinter, error) {
-	rs, err := rulesFor(t)
+	rs, err := RulesFor(t, false)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,21 @@ func NewWithRules(rs check.RuleSet, path string, opts ...Option) (*PathLinter, e
 	return l, nil
 }
 
-func rulesFor(t Target) (check.RuleSet, error) {
+// SoftWindowsCompatTarget reports whether t supports an opt-in Windows desktop-sync overlay
+// (trailing dots/spaces and related advisories). OneDrive/SharePoint are hard Microsoft rules.
+func SoftWindowsCompatTarget(t Target) bool {
+	switch t {
+	case Dropbox, Box, Egnyte, ShareFile:
+		return true
+	default:
+		return false
+	}
+}
+
+// RulesFor returns the RuleSet for a built-in target.
+// When windowsCompat is true and the target is a soft cloud (Dropbox/Box/Egnyte/ShareFile),
+// Windows desktop-sync advisory checkers are included.
+func RulesFor(t Target, windowsCompat bool) (check.RuleSet, error) {
 	switch t {
 	case Windows:
 		return target.Windows(), nil
@@ -60,63 +74,45 @@ func rulesFor(t Target) (check.RuleSet, error) {
 	case Linux:
 		return target.Linux(), nil
 	case Dropbox:
+		if windowsCompat {
+			return target.DropboxWindowsCompat(), nil
+		}
 		return target.Dropbox(), nil
 	case Box:
+		if windowsCompat {
+			return target.BoxWindowsCompat(), nil
+		}
 		return target.Box(), nil
 	case Egnyte:
+		if windowsCompat {
+			return target.EgnyteWindowsCompat(), nil
+		}
 		return target.Egnyte(), nil
 	case OneDrive:
 		return target.OneDrive(), nil
 	case SharePoint:
 		return target.SharePoint(), nil
 	case ShareFile:
+		if windowsCompat {
+			return target.ShareFileWindowsCompat(), nil
+		}
 		return target.ShareFile(), nil
 	default:
 		return check.RuleSet{}, fmt.Errorf("unknown target %q", t)
 	}
 }
 
-// NewWindows is a convenience constructor for Windows rules.
-func NewWindows(path string, opts ...Option) (*PathLinter, error) {
-	return New(Windows, path, opts...)
-}
-
-// NewMacOS is a convenience constructor for macOS rules.
-func NewMacOS(path string, opts ...Option) (*PathLinter, error) {
-	return New(MacOS, path, opts...)
-}
-
-// NewLinux is a convenience constructor for Linux rules.
-func NewLinux(path string, opts ...Option) (*PathLinter, error) {
-	return New(Linux, path, opts...)
-}
-
-// NewDropbox is a convenience constructor for Dropbox rules.
-func NewDropbox(path string, opts ...Option) (*PathLinter, error) {
-	return New(Dropbox, path, opts...)
-}
-
-// NewBox is a convenience constructor for Box rules.
-func NewBox(path string, opts ...Option) (*PathLinter, error) {
-	return New(Box, path, opts...)
-}
-
-// NewEgnyte is a convenience constructor for Egnyte rules.
-func NewEgnyte(path string, opts ...Option) (*PathLinter, error) {
-	return New(Egnyte, path, opts...)
-}
-
-// NewOneDrive is a convenience constructor for OneDrive rules.
-func NewOneDrive(path string, opts ...Option) (*PathLinter, error) {
-	return New(OneDrive, path, opts...)
-}
-
-// NewSharePoint is a convenience constructor for SharePoint rules.
-func NewSharePoint(path string, opts ...Option) (*PathLinter, error) {
-	return New(SharePoint, path, opts...)
-}
-
-// NewShareFile is a convenience constructor for ShareFile rules.
-func NewShareFile(path string, opts ...Option) (*PathLinter, error) {
-	return New(ShareFile, path, opts...)
+// NewWithWindowsCompat creates a PathLinter for a built-in target, optionally applying
+// Windows desktop-sync overlays on soft cloud destinations.
+func NewWithWindowsCompat(t Target, path string, windowsCompat bool, opts ...Option) (*PathLinter, error) {
+	rs, err := RulesFor(t, windowsCompat)
+	if err != nil {
+		return nil, err
+	}
+	l, err := NewWithRules(rs, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	l.target = t
+	return l, nil
 }

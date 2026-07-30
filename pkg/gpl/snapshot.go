@@ -51,7 +51,7 @@ func LoadSnapshot(s Snapshot) (*PathLinter, error) {
 	if s.Target == "" {
 		return nil, fmt.Errorf("snapshot target is required")
 	}
-	rs, err := rulesFor(s.Target)
+	rs, err := RulesFor(s.Target, false)
 	if err != nil {
 		return nil, err
 	}

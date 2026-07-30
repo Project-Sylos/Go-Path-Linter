@@ -82,7 +82,7 @@ func printActions(l *gpl.PathLinter) {
 
 func demoWindowsMessyClean() {
 	raw := `C:\Broken\**path\||file . txt`
-	l, err := gpl.NewWindows(raw,
+	l, err := gpl.New(gpl.Windows, raw,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -102,7 +102,7 @@ func demoWindowsMessyClean() {
 }
 
 func demoEmptyPartRemoval() {
-	l, err := gpl.NewWindows(`C:\Docs\*`,
+	l, err := gpl.New(gpl.Windows,`C:\Docs\*`,
 		gpl.WithRelative(false),
 		gpl.WithAutoValidate(false),
 	)
@@ -116,7 +116,7 @@ func demoEmptyPartRemoval() {
 }
 
 func demoReservedNames() {
-	l, err := gpl.NewWindows(`C:\CON\report.txt`,
+	l, err := gpl.New(gpl.Windows,`C:\CON\report.txt`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -132,7 +132,7 @@ func demoReservedNames() {
 }
 
 func demoDynamicBuild() {
-	l, err := gpl.NewWindows(`C:`,
+	l, err := gpl.New(gpl.Windows,`C:`,
 		gpl.WithRelative(false),
 		gpl.WithAutoValidate(false),
 	)
@@ -155,7 +155,7 @@ func demoDynamicBuild() {
 }
 
 func demoRaiseErrorsOff() {
-	l, err := gpl.NewWindows(`C:\bad<>name\file*.txt`,
+	l, err := gpl.New(gpl.Windows,`C:\bad<>name\file*.txt`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -174,7 +174,7 @@ func demoRaiseErrorsOff() {
 }
 
 func demoAutoClean() {
-	l, err := gpl.NewWindows(`C:\Temp\file*.txt`,
+	l, err := gpl.New(gpl.Windows,`C:\Temp\file*.txt`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -189,7 +189,7 @@ func demoAutoClean() {
 }
 
 func demoPOSIX() {
-	mac, err := gpl.NewMacOS("/Users/me/My:Folder/doc.txt",
+	mac, err := gpl.New(gpl.MacOS, "/Users/me/My:Folder/doc.txt",
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
 	)
@@ -198,7 +198,7 @@ func demoPOSIX() {
 	fmt.Printf("  macOS parts: %#v\n", mac.Parts())
 	fmt.Printf("  macOS Validate(): %v\n", mac.Validate())
 
-	linux, err := gpl.NewLinux("/var/log/app\x00bad.log",
+	linux, err := gpl.New(gpl.Linux, "/var/log/app\x00bad.log",
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -212,16 +212,16 @@ func demoPOSIX() {
 
 func demoCloud() {
 	cases := []struct {
-		name string
-		ctor func(string, ...gpl.Option) (*gpl.PathLinter, error)
-		path string
+		name   string
+		target gpl.Target
+		path   string
 	}{
-		{"Dropbox", gpl.NewDropbox, `/Photos/vacation<>.jpg`},
-		{"OneDrive", gpl.NewOneDrive, `/Documents/_vti_/secret.docx`},
-		{"SharePoint", gpl.NewSharePoint, `/Sites/Team/forms/readme.txt`},
+		{"Dropbox", gpl.Dropbox, `/Photos/vacation<>.jpg`},
+		{"OneDrive", gpl.OneDrive, `/Documents/_vti_/secret.docx`},
+		{"SharePoint", gpl.SharePoint, `/Sites/Team/forms/readme.txt`},
 	}
 	for _, tc := range cases {
-		l, err := tc.ctor(tc.path,
+		l, err := gpl.New(tc.target, tc.path,
 			gpl.WithFileAdded(true),
 			gpl.WithAutoValidate(false),
 		)
@@ -255,7 +255,7 @@ func demoCustomRules() {
 }
 
 func demoSnapshot() {
-	l, err := gpl.NewWindows(`C:\Work\file*.txt`,
+	l, err := gpl.New(gpl.Windows,`C:\Work\file*.txt`,
 		gpl.WithRelative(false),
 		gpl.WithFileAdded(true),
 		gpl.WithAutoValidate(false),
@@ -282,7 +282,7 @@ func demoSnapshot() {
 }
 
 func demoLogByPart() {
-	l, err := gpl.NewWindows(`C:\a<>\b*\c|`,
+	l, err := gpl.New(gpl.Windows,`C:\a<>\b*\c|`,
 		gpl.WithRelative(false),
 		gpl.WithAutoValidate(false),
 	)
@@ -312,7 +312,7 @@ func demoLogByPart() {
 }
 
 func demoRelativeAndSep() {
-	l, err := gpl.NewWindows(`Broken\**\file.txt`,
+	l, err := gpl.New(gpl.Windows,`Broken\**\file.txt`,
 		gpl.WithRelative(true),
 		gpl.WithSeparator(`/`),
 		gpl.WithFileAdded(true),

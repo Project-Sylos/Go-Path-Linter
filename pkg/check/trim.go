@@ -114,12 +114,26 @@ func (c *EmptyPart) Check(part string, index int, ctx CheckContext, r issue.Repo
 }
 
 // Propose removes empty parts (except an allowed leading POSIX root).
+// When CheckContext.DisallowPartRemoval is set, proposes a manual rename instead
+// of dropping the part (hierarchy-preserving policy for migration tools).
 func (c *EmptyPart) Propose(part string, index int, ctx CheckContext) (string, *issue.Action, bool) {
 	if part != "" {
 		return part, nil, false
 	}
 	if c.AllowLeadingEmpty && index == 0 {
 		return part, nil, false
+	}
+	if ctx.DisallowPartRemoval {
+		act := &issue.Action{
+			Category:    issue.CategoryEmptyPart,
+			Kind:        issue.KindModify,
+			PartIndex:   index,
+			Original:    part,
+			NewValue:    part,
+			Reason:      "Requires a manual rename; empty path parts cannot be removed.",
+			UserMessage: "This name needs a manual rename.",
+		}
+		return part, act, true
 	}
 	act := &issue.Action{
 		Category:  issue.CategoryEmptyPart,

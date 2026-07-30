@@ -93,3 +93,75 @@ func TestOneDrive_ReservedForms(t *testing.T) {
 		t.Fatalf("expected rename, actions=%v", actions)
 	}
 }
+
+func TestDropbox_TrailingDotsBaselineNoIssue(t *testing.T) {
+	rs := Dropbox()
+	var buf issue.Buffer
+	rs.CheckAll([]string{"folder..."}, check.CheckContext{Separator: "/"}, &buf)
+	for _, iss := range buf.Issues {
+		if iss.Category == issue.CategoryTrailingDot {
+			t.Fatalf("baseline Dropbox must not flag trailing dots: %#v", iss)
+		}
+	}
+	cleaned, _ := rs.CleanAll([]string{"folder..."}, check.CheckContext{Separator: "/"})
+	if cleaned[0] != "folder..." {
+		t.Fatalf("baseline Dropbox clean want folder... got %q", cleaned[0])
+	}
+}
+
+func TestDropboxWindowsCompat_TrailingDots(t *testing.T) {
+	rs := DropboxWindowsCompat()
+	var buf issue.Buffer
+	rs.CheckAll([]string{"folder..."}, check.CheckContext{Separator: "/"}, &buf)
+	found := false
+	for _, iss := range buf.Issues {
+		if iss.Category == issue.CategoryTrailingDot {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("WindowsCompat Dropbox must flag trailing dots")
+	}
+	cleaned, _ := rs.CleanAll([]string{"folder..."}, check.CheckContext{Separator: "/"})
+	if cleaned[0] != "folder" {
+		t.Fatalf("WindowsCompat clean want folder got %q", cleaned[0])
+	}
+}
+
+func TestOneDrive_TrailingDotsStillHard(t *testing.T) {
+	rs := OneDrive()
+	var buf issue.Buffer
+	rs.CheckAll([]string{"folder..."}, check.CheckContext{Separator: "/"}, &buf)
+	found := false
+	for _, iss := range buf.Issues {
+		if iss.Category == issue.CategoryTrailingDot {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("OneDrive must still hard-flag trailing dots")
+	}
+}
+
+func TestBox_TrailingSpaceOnlyWithWindowsCompat(t *testing.T) {
+	base := Box()
+	var buf issue.Buffer
+	base.CheckAll([]string{"folder "}, check.CheckContext{Separator: "/"}, &buf)
+	for _, iss := range buf.Issues {
+		if iss.Category == issue.CategoryTrailingSpace {
+			t.Fatalf("baseline Box must not flag trailing space: %#v", iss)
+		}
+	}
+	compat := BoxWindowsCompat()
+	buf = issue.Buffer{}
+	compat.CheckAll([]string{"folder "}, check.CheckContext{Separator: "/"}, &buf)
+	found := false
+	for _, iss := range buf.Issues {
+		if iss.Category == issue.CategoryTrailingSpace {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("BoxWindowsCompat must flag trailing space")
+	}
+}

@@ -20,4 +20,6 @@ type Action struct {
 	Reason      string   `json:"reason,omitempty"` // developer / CLI facing
 	UserMessage string   `json:"userMessage,omitempty"`
 	DocsURL     string   `json:"docsURL,omitempty"`
+	// Detail carries structured extras for the UI (e.g. InvalidChar: the forbidden runes found).
+	Detail string `json:"detail,omitempty"`
 }

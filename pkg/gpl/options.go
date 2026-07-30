@@ -6,13 +6,14 @@ import "codeberg.org/Sylos/go-path-linter/pkg/check"
 type Option func(*options)
 
 type options struct {
-	autoClean    bool
-	autoValidate bool
-	raiseErrors  bool
-	relative     *bool // nil means use RuleSet default
-	fileAdded    bool
-	separator    *string // nil means use RuleSet default
-	siblings     []string // sibling basenames for collision detection during Clean
+	autoClean            bool
+	autoValidate         bool
+	raiseErrors          bool
+	relative             *bool // nil means use RuleSet default
+	fileAdded            bool
+	separator            *string // nil means use RuleSet default
+	siblings             []string // sibling basenames for collision detection during Clean
+	disallowPartRemoval  bool
 }
 
 func defaultOptions() options {
@@ -67,6 +68,13 @@ func WithSiblings(names []string) Option {
 		}
 		o.siblings = append([]string(nil), names...)
 	}
+}
+
+// WithDisallowPartRemoval prevents Clean from dropping empty/invalid path parts.
+// Instead those parts stay in the path and Clean reports issues so callers can
+// require a manual rename (hierarchy-preserving policy for migration tools).
+func WithDisallowPartRemoval(v bool) Option {
+	return func(o *options) { o.disallowPartRemoval = v }
 }
 
 func applyOptions(rs check.RuleSet, opts []Option) options {
