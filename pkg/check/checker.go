@@ -16,6 +16,9 @@ type CheckContext struct {
 	Separator  string
 	Parts      []string
 	PathLength int // full joined path length (including separators)
+	// ParentPathLen is the joined length of ancestor parts omitted from Parts.
+	// When set, PathLength = ParentPathLen + sep + joinedLength(Parts).
+	ParentPathLen int
 	// TargetName is a human label (e.g. "Windows") for user-facing messages.
 	TargetName string
 	// DocsURL is the naming-rules documentation link for the target FS.
@@ -88,7 +91,7 @@ type RuleSet struct {
 // CheckAll runs every Checker against each part.
 func (rs RuleSet) CheckAll(parts []string, ctx CheckContext, r issue.Reporter) {
 	ctx.Parts = parts
-	ctx.PathLength = joinedLength(parts, ctx.Separator)
+	ctx.PathLength = EffectivePathLength(ctx.ParentPathLen, parts, ctx.Separator)
 	er := enrichingReporter{inner: r, ctx: ctx}
 	for i, part := range parts {
 		for _, c := range rs.Checkers {
@@ -103,7 +106,7 @@ func (rs RuleSet) CheckAll(parts []string, ctx CheckContext, r issue.Reporter) {
 // Path-scoped checkers are invoked once on the last part (with PathLength set).
 func (rs RuleSet) CheckPath(parts []string, ctx CheckContext, r issue.Reporter) {
 	ctx.Parts = parts
-	ctx.PathLength = joinedLength(parts, ctx.Separator)
+	ctx.PathLength = EffectivePathLength(ctx.ParentPathLen, parts, ctx.Separator)
 	if len(parts) == 0 {
 		return
 	}
@@ -140,7 +143,7 @@ func (rs RuleSet) CleanAll(parts []string, ctx CheckContext) (cleaned []string, 
 	out := make([]string, 0, len(parts))
 
 	for i, part := range parts {
-		ctx.PathLength = joinedLength(append(append([]string{}, out...), parts[i:]...), ctx.Separator)
+		ctx.PathLength = EffectivePathLength(ctx.ParentPathLen, append(append([]string{}, out...), parts[i:]...), ctx.Separator)
 		remove := false
 		cur := part
 		for _, cl := range rs.Cleaners {
@@ -211,4 +214,16 @@ func joinedLength(parts []string, sep string) int {
 		// which matches.
 	}
 	return n
+}
+
+// EffectivePathLength returns parentPathLen + sep + joinedLength(parts) when parentPathLen > 0.
+func EffectivePathLength(parentPathLen int, parts []string, sep string) int {
+	leaf := joinedLength(parts, sep)
+	if parentPathLen <= 0 {
+		return leaf
+	}
+	if leaf == 0 {
+		return parentPathLen
+	}
+	return parentPathLen + len(sep) + leaf
 }

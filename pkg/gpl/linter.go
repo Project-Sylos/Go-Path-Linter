@@ -110,6 +110,19 @@ func (l *PathLinter) SetParts(parts []string) {
 	l.parts = append([]string(nil), parts...)
 }
 
+// SeedParentPathLen sets the joined length of omitted ancestor parts for path-length checks.
+func (l *PathLinter) SeedParentPathLen(n int) {
+	if n < 0 {
+		n = 0
+	}
+	l.opts.parentPathLen = n
+}
+
+// PathLength returns EffectivePathLength(parent seed, current parts, separator).
+func (l *PathLinter) PathLength() int {
+	return check.EffectivePathLength(l.opts.parentPathLen, l.parts, l.sep())
+}
+
 // ReplacePath splits path with the configured separator/relative policy and
 // replaces parts without validating. Call Validate or ValidatePath afterward.
 func (l *PathLinter) ReplacePath(path string) {

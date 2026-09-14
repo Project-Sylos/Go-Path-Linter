@@ -67,6 +67,7 @@ func (l *PathLinter) checkContext() check.CheckContext {
 		FileAdded:           l.opts.fileAdded,
 		Separator:           l.sep(),
 		Parts:               l.parts,
+		ParentPathLen:       l.opts.parentPathLen,
 		TargetName:          info.DisplayName,
 		DocsURL:             info.DocsURL,
 		DisallowPartRemoval: l.opts.disallowPartRemoval,

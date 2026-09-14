@@ -6,14 +6,15 @@ import "codeberg.org/Sylos/go-path-linter/pkg/check"
 type Option func(*options)
 
 type options struct {
-	autoClean            bool
-	autoValidate         bool
-	raiseErrors          bool
-	relative             *bool // nil means use RuleSet default
-	fileAdded            bool
-	separator            *string // nil means use RuleSet default
-	siblings             []string // sibling basenames for collision detection during Clean
-	disallowPartRemoval  bool
+	autoClean           bool
+	autoValidate        bool
+	raiseErrors         bool
+	relative            *bool // nil means use RuleSet default
+	fileAdded           bool
+	separator           *string // nil means use RuleSet default
+	siblings            []string // sibling basenames for collision detection during Clean
+	disallowPartRemoval bool
+	parentPathLen       int // joined length of omitted ancestor parts
 }
 
 func defaultOptions() options {
@@ -75,6 +76,17 @@ func WithSiblings(names []string) Option {
 // require a manual rename (hierarchy-preserving policy for migration tools).
 func WithDisallowPartRemoval(v bool) Option {
 	return func(o *options) { o.disallowPartRemoval = v }
+}
+
+// WithParentPathLen seeds PathLength accounting for ancestor parts not present in
+// the linter's Parts slice (leaf-only eval: AddPart after seeding parent length).
+func WithParentPathLen(n int) Option {
+	return func(o *options) {
+		if n < 0 {
+			n = 0
+		}
+		o.parentPathLen = n
+	}
 }
 
 func applyOptions(rs check.RuleSet, opts []Option) options {
